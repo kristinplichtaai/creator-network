@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Mail, Star, Check, ExternalLink, RefreshCw, LogOut } from 'lucide-react';
+import { Users, Mail, Star, Check, ExternalLink, RefreshCw, LogOut, MapPin, Sparkles } from 'lucide-react';
+import LocationSetup from './LocationSetup';
+import CollaboratorMatches from './CollaboratorMatches';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -148,6 +150,8 @@ export default function LocalCreatorNetwork({ user, onLogout }) {
   const [loading, setLoading] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
   const [showSetup, setShowSetup] = useState(true);
+  const [activeTab, setActiveTab] = useState('platforms'); // platforms, location, matches
+  const [userProfile, setUserProfile] = useState(null);
 
   // Handle OAuth callback on page load
   useEffect(() => {
@@ -174,7 +178,7 @@ export default function LocalCreatorNetwork({ user, onLogout }) {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (response.ok) {
           const accounts = await response.json();
           if (accounts.length > 0) {
@@ -189,6 +193,40 @@ export default function LocalCreatorNetwork({ user, onLogout }) {
 
     loadSavedAccounts();
   }, []);
+
+  // Load user profile to check location
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const profile = await response.json();
+          setUserProfile(profile);
+
+          // Auto-navigate to appropriate tab based on setup status
+          if (creators.length === 0) {
+            setActiveTab('platforms');
+          } else if (!profile.city || !profile.latitude) {
+            setActiveTab('location');
+          } else {
+            setActiveTab('matches');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+      }
+    };
+
+    loadUserProfile();
+  }, [creators.length]);
 
   const handleOAuthCallback = async (platform, code) => {
     setLoading(true);
@@ -273,8 +311,8 @@ Best,
         }
       });
       const updatedData = await response.json();
-      
-      setCreators(prev => prev.map(c => 
+
+      setCreators(prev => prev.map(c =>
         c.id === userId ? { ...updatedData, id: userId } : c
       ));
     } catch (error) {
@@ -282,12 +320,65 @@ Best,
     }
   };
 
+  const handleLocationSaved = (updatedUser) => {
+    setUserProfile(updatedUser);
+    setActiveTab('matches');
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'platforms':
+        return (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Connect Your Platforms</h2>
+            <p className="text-gray-600 mb-6">Connect your social media accounts to get started with AI-powered collaboration matching.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {['instagram', 'tiktok', 'youtube'].map(platform => (
+                <PlatformConnect key={platform} platform={platform} />
+              ))}
+            </div>
+
+            {creators.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Connected Accounts ({creators.length})</h3>
+                {creators.map(creator => (
+                  <div key={creator.id} className="mb-3">
+                    <CreatorCard
+                      creator={creator}
+                      onReachOut={generateOutreach}
+                      onSave={handleSave}
+                      isSaved={savedIds.has(creator.id)}
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={() => setActiveTab('location')}
+                  className="mt-4 w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Continue to Location Setup
+                </button>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'location':
+        return <LocationSetup user={user} onLocationSaved={handleLocationSaved} />;
+
+      case 'matches':
+        return <CollaboratorMatches user={user} />;
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Users className="w-8 h-8 text-blue-600" />
               <div>
@@ -298,14 +389,6 @@ Best,
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {!showSetup && (
-                <button
-                  onClick={() => setShowSetup(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                >
-                  Connect More Platforms
-                </button>
-              )}
               {onLogout && (
                 <button
                   onClick={onLogout}
@@ -317,7 +400,62 @@ Best,
               )}
             </div>
           </div>
-          <p className="text-gray-600">AI-powered collaboration matching with real social media data</p>
+
+          <p className="text-gray-600 mb-6">AI-powered collaboration matching for local content creators</p>
+
+          {/* Tabs */}
+          <div className="flex gap-2 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('platforms')}
+              className={`px-4 py-2 font-medium text-sm transition-colors relative ${
+                activeTab === 'platforms'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Connected Platforms
+                {creators.length > 0 && (
+                  <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                    {creators.length}
+                  </span>
+                )}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('location')}
+              className={`px-4 py-2 font-medium text-sm transition-colors relative ${
+                activeTab === 'location'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Location Setup
+                {userProfile?.city && (
+                  <Check className="w-4 h-4 text-green-600" />
+                )}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('matches')}
+              disabled={!userProfile?.city || creators.length === 0}
+              className={`px-4 py-2 font-medium text-sm transition-colors relative ${
+                activeTab === 'matches'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              } ${(!userProfile?.city || creators.length === 0) && 'opacity-50 cursor-not-allowed'}`}
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Find Collaborators
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Loading */}
@@ -329,128 +467,8 @@ Best,
           </div>
         )}
 
-        {/* Platform Setup */}
-        {showSetup && !loading && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Connect Your Platforms</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {['instagram', 'tiktok', 'youtube'].map(platform => (
-                <PlatformConnect key={platform} platform={platform} />
-              ))}
-            </div>
-            {Object.keys(connectedPlatforms).length > 0 && (
-              <button
-                onClick={() => setShowSetup(false)}
-                className="mt-4 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-              >
-                Continue to Dashboard
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Connected Profiles */}
-        {!showSetup && !loading && creators.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Your Connected Profiles ({creators.length})
-              </h2>
-              
-              {creators.map(creator => (
-                <div key={creator.id} className="mb-4">
-                  <CreatorCard
-                    creator={creator}
-                    onReachOut={generateOutreach}
-                    onSave={handleSave}
-                    isSaved={savedIds.has(creator.id)}
-                  />
-                  <button
-                    onClick={() => refreshCreatorData(creator.id)}
-                    className="ml-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh data
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Outreach Generator */}
-            <div className="lg:sticky lg:top-6 h-fit">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Outreach Generator</h2>
-                
-                {!selectedCreator && !loading && (
-                  <div className="text-center py-12 text-gray-500">
-                    <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Click "Generate Outreach" to create a personalized message</p>
-                  </div>
-                )}
-
-                {loading && selectedCreator && (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                    <p className="text-gray-600">Crafting personalized outreach...</p>
-                  </div>
-                )}
-
-                {selectedCreator && !loading && outreachMessage && (
-                  <>
-                    <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-blue-900">
-                        <span className="font-medium">To:</span> {selectedCreator.displayName}
-                      </p>
-                    </div>
-                    
-                    <textarea
-                      value={outreachMessage}
-                      onChange={(e) => setOutreachMessage(e.target.value)}
-                      className="w-full h-64 p-4 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    
-                    <div className="mt-4 flex gap-3">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(outreachMessage);
-                          alert('Message copied to clipboard!');
-                        }}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                      >
-                        <Check className="w-4 h-4" />
-                        Copy Message
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedCreator(null);
-                          setOutreachMessage('');
-                        }}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!showSetup && !loading && creators.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Connected Platforms</h3>
-            <p className="text-gray-600 mb-4">Connect your social media accounts to get started</p>
-            <button
-              onClick={() => setShowSetup(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Connect Platforms
-            </button>
-          </div>
-        )}
+        {/* Tab Content */}
+        {!loading && renderTabContent()}
       </div>
     </div>
   );

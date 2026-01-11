@@ -25,6 +25,37 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    city: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    state: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    country: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'US'
+    },
+    zipCode: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    latitude: {
+      type: DataTypes.DECIMAL(10, 8),
+      allowNull: true
+    },
+    longitude: {
+      type: DataTypes.DECIMAL(11, 8),
+      allowNull: true
+    },
+    searchRadius: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 50, // Default 50 miles
+      comment: 'Preferred collaboration search radius in miles'
+    },
     createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW

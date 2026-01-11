@@ -7,8 +7,10 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { testConnection, initializeDatabase } = require('./database');
-const { User, SocialAccount } = require('./models');
+const { User, SocialAccount, CollaboratorMatch } = require('./models');
 const { router: authRouter, authenticateToken } = require('./auth');
+const matchingService = require('./services/matchingService');
+const aiService = require('./services/aiService');
 
 const app = express();
 
@@ -405,6 +407,239 @@ app.get('/api/user/social-accounts', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching social accounts:', error);
     res.status(500).json({ error: 'Failed to fetch social accounts' });
+  }
+});
+
+// ==================== COLLABORATOR MATCHING ENDPOINTS ====================
+
+// Update user location
+app.put('/api/user/location', authenticateToken, async (req, res) => {
+  try {
+    const { city, state, country, zipCode, latitude, longitude, searchRadius } = req.body;
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update location fields
+    if (city) user.city = city;
+    if (state) user.state = state;
+    if (country) user.country = country;
+    if (zipCode) user.zipCode = zipCode;
+    if (latitude) user.latitude = latitude;
+    if (longitude) user.longitude = longitude;
+    if (searchRadius) user.searchRadius = searchRadius;
+
+    await user.save();
+
+    res.json({
+      message: 'Location updated successfully',
+      user: {
+        id: user.id,
+        city: user.city,
+        state: user.state,
+        country: user.country,
+        searchRadius: user.searchRadius
+      }
+    });
+  } catch (error) {
+    console.error('Error updating location:', error);
+    res.status(500).json({ error: 'Failed to update location' });
+  }
+});
+
+// Get user profile with location
+app.get('/api/user/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'email', 'name', 'city', 'state', 'country', 'zipCode', 'latitude', 'longitude', 'searchRadius']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Find and generate collaborator matches
+app.post('/api/matches/generate', authenticateToken, async (req, res) => {
+  try {
+    const { maxDistance, minFollowers, maxFollowers, platforms, minEngagement, limit } = req.body;
+
+    const options = {
+      maxDistance,
+      minFollowers,
+      maxFollowers,
+      platforms,
+      minEngagement,
+      limit
+    };
+
+    const result = await matchingService.generateMatches(req.user.id, options);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error generating matches:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate matches' });
+  }
+});
+
+// Get saved matches
+app.get('/api/matches', authenticateToken, async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    const matches = await matchingService.getSavedMatches(req.user.id, status);
+
+    // Format matches for response
+    const formatted = matches.map(match => ({
+      id: match.id,
+      matchScore: match.matchScore,
+      distance: match.distanceMiles,
+      status: match.status,
+      outreachSent: match.outreachSent,
+      outreachSentAt: match.outreachSentAt,
+      collaborationFormats: match.collaborationFormats,
+      audienceInsights: match.audienceInsights,
+      matchReasons: match.matchReasons,
+      notes: match.notes,
+      createdAt: match.createdAt,
+      matchedUser: {
+        id: match.matchedUser.id,
+        name: match.matchedUser.name,
+        city: match.matchedUser.city,
+        state: match.matchedUser.state,
+        socialAccounts: match.matchedUser.socialAccounts.map(acc => ({
+          id: acc.id,
+          platform: acc.platform,
+          username: acc.username,
+          displayName: acc.displayName,
+          followers: acc.followers,
+          following: acc.following,
+          postCount: acc.postCount,
+          engagement: acc.engagementRate,
+          profileUrl: acc.profileUrl,
+          recentTopics: acc.profileData?.recentTopics || []
+        }))
+      }
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Error fetching matches:', error);
+    res.status(500).json({ error: 'Failed to fetch matches' });
+  }
+});
+
+// Update match status
+app.put('/api/matches/:matchId/status', authenticateToken, async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const { status, notes } = req.body;
+
+    const match = await matchingService.updateMatchStatus(matchId, req.user.id, status, notes);
+
+    res.json({
+      message: 'Match status updated',
+      match
+    });
+  } catch (error) {
+    console.error('Error updating match status:', error);
+    res.status(500).json({ error: error.message || 'Failed to update match status' });
+  }
+});
+
+// Generate AI outreach message
+app.post('/api/matches/:matchId/outreach', authenticateToken, async (req, res) => {
+  try {
+    const { matchId } = req.params;
+
+    // Get the match with full details
+    const match = await CollaboratorMatch.findOne({
+      where: {
+        id: matchId,
+        userId: req.user.id
+      },
+      include: [
+        {
+          model: User,
+          as: 'matchedUser',
+          include: [
+            {
+              model: SocialAccount,
+              as: 'socialAccounts'
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    // Get current user data
+    const currentUser = await User.findByPk(req.user.id, {
+      include: [
+        {
+          model: SocialAccount,
+          as: 'socialAccounts'
+        }
+      ]
+    });
+
+    // Prepare target creator data
+    const targetCreator = {
+      displayName: match.matchedUser.name || match.matchedUser.socialAccounts[0]?.displayName,
+      username: match.matchedUser.socialAccounts[0]?.username,
+      platform: match.matchedUser.socialAccounts[0]?.platform,
+      followers: match.matchedUser.socialAccounts[0]?.followers,
+      engagement: match.matchedUser.socialAccounts[0]?.engagementRate,
+      recentTopics: match.matchedUser.socialAccounts[0]?.profileData?.recentTopics || [],
+      distance: parseFloat(match.distanceMiles)
+    };
+
+    // Generate AI outreach message
+    const outreachMessage = await aiService.generateOutreachMessage(
+      currentUser,
+      targetCreator,
+      match.collaborationFormats || []
+    );
+
+    res.json({
+      message: outreachMessage,
+      targetCreator: {
+        name: targetCreator.displayName,
+        username: targetCreator.username,
+        platform: targetCreator.platform
+      }
+    });
+  } catch (error) {
+    console.error('Error generating outreach:', error);
+    res.status(500).json({ error: 'Failed to generate outreach message' });
+  }
+});
+
+// Mark outreach as sent
+app.post('/api/matches/:matchId/outreach/sent', authenticateToken, async (req, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const match = await matchingService.markOutreachSent(matchId, req.user.id);
+
+    res.json({
+      message: 'Outreach marked as sent',
+      match
+    });
+  } catch (error) {
+    console.error('Error marking outreach as sent:', error);
+    res.status(500).json({ error: error.message || 'Failed to mark outreach as sent' });
   }
 });
 
