@@ -43,6 +43,9 @@ class MatchingService {
       limit = 20
     } = options;
 
+    console.log('🔍 Finding matches for user:', userId);
+    console.log('   Search options:', { maxDistance, minFollowers, maxFollowers, platforms, minEngagement, limit });
+
     // Get current user with their location and social accounts
     const currentUser = await User.findByPk(userId, {
       include: [
@@ -57,11 +60,21 @@ class MatchingService {
       throw new Error('User not found');
     }
 
+    console.log('   Current user:', currentUser.name || currentUser.email);
+    console.log('   Location:', currentUser.city, currentUser.state);
+    console.log('   Coordinates:', currentUser.latitude, currentUser.longitude);
+    console.log('   Social accounts:', currentUser.socialAccounts?.length || 0);
+
     if (!currentUser.latitude || !currentUser.longitude) {
-      throw new Error('User location not set. Please update your profile with your location.');
+      throw new Error('User location not set. Please update your profile with your location in the Location Setup tab.');
+    }
+
+    if (!currentUser.socialAccounts || currentUser.socialAccounts.length === 0) {
+      throw new Error('No social accounts connected. Please connect at least one social media account in the Connected Platforms tab.');
     }
 
     const searchRadius = maxDistance || currentUser.searchRadius || 50;
+    console.log('   Search radius:', searchRadius, 'miles');
 
     // Calculate bounding box for initial filtering (approximation for performance)
     // 1 degree latitude ≈ 69 miles
@@ -78,6 +91,11 @@ class MatchingService {
         [Op.between]: [currentUser.longitude - lonRange, currentUser.longitude + lonRange]
       }
     };
+
+    console.log('   Searching bounding box:', {
+      latRange: `${(currentUser.latitude - latRange).toFixed(4)} to ${(currentUser.latitude + latRange).toFixed(4)}`,
+      lonRange: `${(currentUser.longitude - lonRange).toFixed(4)} to ${(currentUser.longitude + lonRange).toFixed(4)}`
+    });
 
     const potentialMatches = await User.findAll({
       where: whereClause,
@@ -96,6 +114,8 @@ class MatchingService {
       ],
       limit: limit * 2 // Get more than needed since we'll filter by exact distance
     });
+
+    console.log('   Found', potentialMatches.length, 'potential matches in database');
 
     // Calculate exact distances and filter
     const matchesWithDistance = potentialMatches
@@ -116,6 +136,21 @@ class MatchingService {
       .filter(m => m.distance <= searchRadius)
       .sort((a, b) => a.distance - b.distance)
       .slice(0, limit);
+
+    console.log('   After distance filtering:', matchesWithDistance.length, 'matches within', searchRadius, 'miles');
+
+    if (matchesWithDistance.length > 0) {
+      console.log('   Matches:');
+      matchesWithDistance.forEach((m, idx) => {
+        console.log(`     ${idx + 1}. ${m.user.name || m.user.email} - ${m.distance.toFixed(1)} miles (${m.user.city}, ${m.user.state})`);
+      });
+    } else {
+      console.log('   ⚠️  No matches found. Possible reasons:');
+      console.log('      - No other users have set their location');
+      console.log('      - No users within your search radius');
+      console.log('      - Other users don\'t have social accounts connected');
+      console.log('   💡 Try running: npm run seed (to add test users)');
+    }
 
     return {
       currentUser,
