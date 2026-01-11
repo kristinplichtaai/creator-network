@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { UserCircle, Mail, Lock, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
 const Login = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -18,7 +20,7 @@ const Login = ({ onLoginSuccess }) => {
 
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const response = await fetch(`http://localhost:3001${endpoint}`, {
+      cconst response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
