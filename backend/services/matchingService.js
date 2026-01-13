@@ -76,25 +76,29 @@ class MatchingService {
     const searchRadius = maxDistance || currentUser.searchRadius || 50;
     console.log('   Search radius:', searchRadius, 'miles');
 
+    // Convert latitude/longitude to numbers (Sequelize DECIMAL returns strings)
+    const userLat = parseFloat(currentUser.latitude);
+    const userLon = parseFloat(currentUser.longitude);
+
     // Calculate bounding box for initial filtering (approximation for performance)
     // 1 degree latitude ≈ 69 miles
     const latRange = searchRadius / 69;
-    const lonRange = searchRadius / (69 * Math.cos(this.toRadians(currentUser.latitude)));
+    const lonRange = searchRadius / (69 * Math.cos(this.toRadians(userLat)));
 
     // Find potential users within approximate range
     const whereClause = {
       id: { [Op.ne]: userId }, // Exclude current user
       latitude: {
-        [Op.between]: [currentUser.latitude - latRange, currentUser.latitude + latRange]
+        [Op.between]: [userLat - latRange, userLat + latRange]
       },
       longitude: {
-        [Op.between]: [currentUser.longitude - lonRange, currentUser.longitude + lonRange]
+        [Op.between]: [userLon - lonRange, userLon + lonRange]
       }
     };
 
     console.log('   Searching bounding box:', {
-      latRange: `${(currentUser.latitude - latRange).toFixed(4)} to ${(currentUser.latitude + latRange).toFixed(4)}`,
-      lonRange: `${(currentUser.longitude - lonRange).toFixed(4)} to ${(currentUser.longitude + lonRange).toFixed(4)}`
+      latRange: `${(userLat - latRange).toFixed(4)} to ${(userLat + latRange).toFixed(4)}`,
+      lonRange: `${(userLon - lonRange).toFixed(4)} to ${(userLon + lonRange).toFixed(4)}`
     });
 
     const potentialMatches = await User.findAll({
@@ -121,10 +125,10 @@ class MatchingService {
     const matchesWithDistance = potentialMatches
       .map(match => {
         const distance = this.calculateDistance(
-          currentUser.latitude,
-          currentUser.longitude,
-          match.latitude,
-          match.longitude
+          userLat,
+          userLon,
+          parseFloat(match.latitude),
+          parseFloat(match.longitude)
         );
 
         return {
