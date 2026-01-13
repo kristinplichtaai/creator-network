@@ -1,0 +1,137 @@
+%% Process Flow Diagram - Collaborator Matching
+
+flowchart TD
+    Start([👤 User Wants to Find<br/>Local Collaborators])
+
+    Start --> Connect
+
+    subgraph Setup["🔧 SETUP PHASE"]
+        Connect[1. Connect Social Media<br/>Instagram/YouTube/TikTok]
+        OAuth[OAuth Flow<br/>→ Get access token<br/>→ Fetch profile data<br/>→ Extract followers, engagement, topics]
+        SaveProfile[Save Profile Data<br/>to Database]
+
+        Connect --> OAuth
+        OAuth --> SaveProfile
+
+        Location[2. Set Location<br/>Option A: GPS<br/>Option B: Manual Entry]
+        Geocode[Geocode Address<br/>→ Get latitude, longitude<br/>→ Save coordinates]
+
+        SaveProfile --> Location
+        Location --> Geocode
+    end
+
+    Geocode --> Ready
+    Ready{User Ready<br/>with Location +<br/>Social Account?}
+
+    Ready -->|No| Connect
+    Ready -->|Yes| FindButton
+
+    FindButton[3. Click<br/>'Find Collaborators']
+
+    FindButton --> Matching
+
+    subgraph Matching["🔍 MATCHING ALGORITHM"]
+        direction TB
+
+        GeoSearch[Step 1: Geographic Search<br/>Calculate bounding box:<br/>latRange = radius / 69 miles<br/>lonRange = radius / 69×cos lat]
+
+        Query[Query Database<br/>Find users in bounding box<br/>Exclude self<br/>Must have social accounts]
+
+        Distance[Step 2: Calculate Distance<br/>For each candidate:<br/>Haversine distance formula<br/>Filter: within search radius<br/>Sort by distance]
+
+        AIAnalysis[Step 3: AI Analysis<br/>For each match in parallel:]
+
+        subgraph AITasks["Parallel AI Tasks"]
+            Compat[A. Audience Compatibility<br/>• Compare follower counts<br/>• Analyze engagement rates<br/>• Check topic overlap<br/>• Score: 0-100]
+
+            Suggest[B. Collaboration Formats<br/>• Consider distance<br/>• Analyze content types<br/>• Generate 4-5 ideas<br/>• Mark IRL vs Virtual]
+
+            Score[C. Calculate Match Score<br/>= Compatibility×0.7<br/>+ Distance Score×0.3<br/>Distance Score = 100 - dist/2]
+        end
+
+        SaveMatch[Step 4: Save Matches<br/>Store in database:<br/>• Match score<br/>• Distance<br/>• AI insights<br/>• Status: pending]
+
+        GeoSearch --> Query
+        Query --> Distance
+        Distance --> AIAnalysis
+        AIAnalysis --> Compat
+        AIAnalysis --> Suggest
+        AIAnalysis --> Score
+        Compat --> SaveMatch
+        Suggest --> SaveMatch
+        Score --> SaveMatch
+    end
+
+    SaveMatch --> DisplayMatches
+
+    subgraph Display["📊 DISPLAY RESULTS"]
+        DisplayMatches[4. Show Matches<br/>Sorted by match score]
+        MatchCard[Match Cards Show:<br/>• Distance<br/>• Compatibility score<br/>• Collaboration ideas<br/>• Profile info]
+
+        DisplayMatches --> MatchCard
+    end
+
+    MatchCard --> UserAction
+    UserAction{User Selects Match}
+
+    UserAction -->|View Details| ExpandCard[Expand Card<br/>Show full analysis]
+    UserAction -->|Generate Outreach| Outreach
+    UserAction -->|Archive| Archive[Update Status:<br/>Archived]
+
+    ExpandCard --> UserAction
+
+    subgraph Outreach["✉️ OUTREACH GENERATION"]
+        direction TB
+
+        BuildPrompt[Build AI Prompt<br/>Your Profile + Their Profile<br/>+ Collaboration ideas<br/>+ Match context]
+
+        CallAI[AI Generation<br/>Claude/GPT-4<br/>Creates 150-200 word<br/>personalized message]
+
+        Review[User Reviews Message<br/>Can edit & customize]
+
+        Copy[Copy to Clipboard<br/>User sends via platform]
+
+        MarkSent[Mark as 'Sent'<br/>Update database:<br/>• outreachSent = true<br/>• outreachSentAt = now<br/>• status = 'contacted']
+
+        BuildPrompt --> CallAI
+        CallAI --> Review
+        Review --> Copy
+        Copy --> MarkSent
+    end
+
+    MarkSent --> Track
+
+    subgraph Track["📈 TRACKING"]
+        UpdateStatus[8. Update Match Status<br/>• Pending<br/>• Contacted<br/>• Accepted<br/>• Rejected]
+
+        AddNotes[Add Notes<br/>Track communication<br/>Plan collaboration]
+
+        UpdateStatus --> AddNotes
+    end
+
+    AddNotes --> Success
+    Archive --> DisplayMatches
+
+    Success([✅ Success!<br/>Collaboration Initiated])
+
+    %% Edge cases
+    Query -.No users found.-> NoMatches
+    NoMatches[⚠️ No Matches<br/>Try:<br/>• Increase radius<br/>• Seed test data]
+    NoMatches --> FindButton
+
+    %% Styling
+    classDef setupStyle fill:#3b82f6,stroke:#1e40af,color:#fff
+    classDef matchStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    classDef aiStyle fill:#10b981,stroke:#059669,color:#fff
+    classDef displayStyle fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef outreachStyle fill:#ec4899,stroke:#db2777,color:#fff
+    classDef trackStyle fill:#06b6d4,stroke:#0891b2,color:#fff
+    classDef errorStyle fill:#ef4444,stroke:#dc2626,color:#fff
+
+    class Connect,OAuth,SaveProfile,Location,Geocode setupStyle
+    class GeoSearch,Query,Distance,AIAnalysis,SaveMatch matchStyle
+    class Compat,Suggest,Score,AITasks aiStyle
+    class DisplayMatches,MatchCard displayStyle
+    class BuildPrompt,CallAI,Review,Copy,MarkSent outreachStyle
+    class UpdateStatus,AddNotes trackStyle
+    class NoMatches errorStyle

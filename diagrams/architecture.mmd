@@ -1,0 +1,104 @@
+%% Architecture Diagram - AI Collaborator Matching System
+
+graph TB
+    subgraph Frontend["🎨 FRONTEND (React)"]
+        LS[Location Setup<br/>Component]
+        CM[Collaborator Matches<br/>Component]
+        OP[Outreach Panel<br/>Component]
+        LCN[Local Creator Network<br/>Main App]
+
+        LCN --> LS
+        LCN --> CM
+        CM --> OP
+    end
+
+    subgraph API["⚡ BACKEND API (Express)"]
+        AR[Auth Router<br/>JWT Middleware]
+        MR[Match Router<br/>REST Endpoints]
+
+        EP1[PUT /user/location]
+        EP2[POST /matches/generate]
+        EP3[GET /matches]
+        EP4[POST /matches/:id/outreach]
+
+        AR --> EP1
+        MR --> EP2
+        MR --> EP3
+        MR --> EP4
+    end
+
+    subgraph Services["🔧 SERVICE LAYER"]
+        MS[Matching Service<br/>matchingService.js]
+        AI[AI Service<br/>aiService.js]
+
+        MS1[findMatches<br/>Geographic Search]
+        MS2[calculateDistance<br/>Haversine Formula]
+        MS3[generateMatches<br/>Match Scoring]
+
+        AI1[analyzeAudienceCompatibility<br/>AI Analysis]
+        AI2[suggestCollaborationFormats<br/>AI Suggestions]
+        AI3[generateOutreachMessage<br/>AI Generation]
+
+        MS --> MS1
+        MS --> MS2
+        MS --> MS3
+
+        AI --> AI1
+        AI --> AI2
+        AI --> AI3
+
+        MS3 --> AI1
+        MS3 --> AI2
+    end
+
+    subgraph Database["🗄️ DATA LAYER (PostgreSQL)"]
+        U[(Users Table<br/>id, email, name<br/>city, state<br/>latitude, longitude<br/>searchRadius)]
+        SA[(Social Accounts<br/>userId, platform<br/>username, followers<br/>engagement, topics)]
+        CM2[(Collaborator Matches<br/>userId, matchedUserId<br/>matchScore, distance<br/>insights, formats<br/>status)]
+
+        U -.userId.-> SA
+        U -.userId.-> CM2
+        U -.matchedUserId.-> CM2
+    end
+
+    subgraph External["🤖 EXTERNAL AI"]
+        Claude[Anthropic Claude<br/>claude-3-5-sonnet<br/>Preferred]
+        GPT[OpenAI GPT-4<br/>Fallback]
+
+        AI1 -.API Call.-> Claude
+        AI2 -.API Call.-> Claude
+        AI3 -.API Call.-> Claude
+
+        Claude -.If Unavailable.-> GPT
+    end
+
+    %% Connections
+    LS --> EP1
+    CM --> EP2
+    CM --> EP3
+    OP --> EP4
+
+    EP1 --> MS
+    EP2 --> MS
+    EP3 --> MS
+    EP4 --> AI
+
+    MS1 --> U
+    MS1 --> SA
+    MS3 --> CM2
+
+    AI3 --> U
+    AI3 --> SA
+
+    %% Styling
+    classDef frontend fill:#3b82f6,stroke:#1e40af,color:#fff
+    classDef backend fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    classDef service fill:#10b981,stroke:#059669,color:#fff
+    classDef database fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef external fill:#ec4899,stroke:#db2777,color:#fff
+
+    class LS,CM,OP,LCN frontend
+    class AR,MR,EP1,EP2,EP3,EP4 backend
+    class MS,AI,MS1,MS2,MS3,AI1,AI2,AI3 service
+    class U,SA,CM2 database
+    class Claude,GPT external

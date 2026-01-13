@@ -1,0 +1,88 @@
+%% Geographic Matching Algorithm Visualization
+
+flowchart TB
+    subgraph Input["📍 INPUT"]
+        User[User Location<br/>San Francisco, CA<br/>37.7749°N, 122.4194°W]
+        Radius[Search Radius<br/>50 miles]
+    end
+
+    User --> Calculate
+    Radius --> Calculate
+
+    subgraph Algorithm["🧮 ALGORITHM"]
+        Calculate[Calculate Bounding Box<br/><br/>latRange = 50 / 69 = 0.725°<br/>lonRange = 50 / 69×cos37.77° = 0.916°]
+
+        BBox[Bounding Box:<br/>────────────────<br/>North: 38.50°N<br/>South: 37.05°N<br/>East: -121.50°W<br/>West: -123.33°W]
+
+        Query[SQL Query:<br/>SELECT * FROM users<br/>WHERE latitude BETWEEN 37.05 AND 38.50<br/>AND longitude BETWEEN -123.33 AND -121.50<br/>AND id != current_user<br/>AND has social accounts]
+
+        Calculate --> BBox
+        BBox --> Query
+    end
+
+    Query --> Results
+
+    subgraph Results["🔍 RESULTS - Potential Matches"]
+        Match1[Mike Chen<br/>Oakland, CA<br/>37.8044°N, 122.2712°W<br/>✓ In bounding box]
+
+        Match2[Emma Rodriguez<br/>San Jose, CA<br/>37.3382°N, 121.8863°W<br/>✓ In bounding box]
+
+        Match3[Alex Kim<br/>Berkeley, CA<br/>37.8715°N, 122.2730°W<br/>✓ In bounding box]
+
+        Match4[Jamie Martinez<br/>Palo Alto, CA<br/>37.4419°N, 122.1430°W<br/>✓ In bounding box]
+    end
+
+    Results --> Haversine
+
+    subgraph Haversine["📏 HAVERSINE DISTANCE CALCULATION"]
+        direction TB
+
+        Formula[For each match, calculate exact distance:<br/><br/>a = sin²Δlat/2 + cosLat1 × cosLat2 × sin²Δlon/2<br/>c = 2 × atan2√a, √1−a<br/>distance = R × c  where R = 3959 miles]
+
+        Calc1[Mike Chen<br/>Distance = 12.3 miles<br/>✓ Within 50 mile radius]
+
+        Calc2[Emma Rodriguez<br/>Distance = 42.1 miles<br/>✓ Within 50 mile radius]
+
+        Calc3[Alex Kim<br/>Distance = 14.5 miles<br/>✓ Within 50 mile radius]
+
+        Calc4[Jamie Martinez<br/>Distance = 28.7 miles<br/>✓ Within 50 mile radius]
+
+        Formula --> Calc1
+        Formula --> Calc2
+        Formula --> Calc3
+        Formula --> Calc4
+    end
+
+    Haversine --> Final
+
+    subgraph Final["✅ FINAL MATCHES - Sorted by Distance"]
+        F1[1. Mike Chen - 12.3 mi]
+        F2[2. Alex Kim - 14.5 mi]
+        F3[3. Jamie Martinez - 28.7 mi]
+        F4[4. Emma Rodriguez - 42.1 mi]
+    end
+
+    Final --> AI
+
+    subgraph AI["🤖 AI ANALYSIS PHASE"]
+        AIPrompt[For each match:<br/>────────────────<br/>1. Analyze audience compatibility<br/>2. Suggest collaboration formats<br/>3. Calculate match score<br/>4. Save to database]
+    end
+
+    AI --> Output
+
+    Output[📊 OUTPUT<br/>4 matches with:<br/>• Match scores<br/>• Distance<br/>• AI insights<br/>• Collaboration ideas]
+
+    %% Styling
+    classDef inputStyle fill:#3b82f6,stroke:#1e40af,color:#fff
+    classDef algoStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    classDef resultStyle fill:#10b981,stroke:#059669,color:#fff
+    classDef calcStyle fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef finalStyle fill:#ec4899,stroke:#db2777,color:#fff
+    classDef aiStyle fill:#06b6d4,stroke:#0891b2,color:#fff
+
+    class User,Radius inputStyle
+    class Calculate,BBox,Query algoStyle
+    class Match1,Match2,Match3,Match4 resultStyle
+    class Formula,Calc1,Calc2,Calc3,Calc4 calcStyle
+    class F1,F2,F3,F4 finalStyle
+    class AIPrompt,Output aiStyle

@@ -1,0 +1,59 @@
+%% Database Schema - Entity Relationship Diagram
+
+erDiagram
+    USERS ||--o{ SOCIAL_ACCOUNTS : has
+    USERS ||--o{ COLLABORATOR_MATCHES : creates
+    USERS ||--o{ COLLABORATOR_MATCHES : receives
+    SOCIAL_ACCOUNTS }o--|| USERS : "belongs to"
+
+    USERS {
+        uuid id PK
+        string email UK "Unique email"
+        string password "Hashed bcrypt"
+        string name "Display name"
+        string city "City name"
+        string state "State code"
+        string country "Country code"
+        string zipCode "Postal code"
+        decimal latitude "GPS coordinate"
+        decimal longitude "GPS coordinate"
+        integer searchRadius "Miles, default 50"
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    SOCIAL_ACCOUNTS {
+        uuid id PK
+        uuid userId FK
+        string platform "instagram|youtube|tiktok"
+        string platformUserId UK "Platform's user ID"
+        string username "Handle"
+        string displayName "Display name"
+        integer followers "Follower count"
+        integer following "Following count"
+        integer postCount "Total posts"
+        decimal engagementRate "Percentage"
+        string profileUrl "Profile link"
+        string accessToken "OAuth token"
+        jsonb profileData "Topics, bio, etc"
+        timestamp lastSyncedAt
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    COLLABORATOR_MATCHES {
+        uuid id PK
+        uuid userId FK "User receiving match"
+        uuid matchedUserId FK "Matched user"
+        decimal matchScore "0-100 score"
+        decimal distanceMiles "Distance in miles"
+        jsonb matchReasons "Why matched"
+        jsonb collaborationFormats "AI suggestions"
+        jsonb audienceInsights "Compatibility data"
+        string status "pending|contacted|accepted|rejected|archived"
+        boolean outreachSent "Message sent flag"
+        timestamp outreachSentAt "When sent"
+        text notes "User notes"
+        timestamp createdAt
+        timestamp updatedAt
+    }
