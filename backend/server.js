@@ -192,16 +192,36 @@ class YouTubeAPI {
 
   static calculateEngagement(videos, subscriberCount) {
     if (!videos.length || !subscriberCount) return 0;
-    
+
     const totalEngagement = videos.reduce((sum, video) => {
       const stats = video.statistics || {};
-      return sum + 
-        parseInt(stats.likeCount || 0) + 
+      return sum +
+        parseInt(stats.likeCount || 0) +
         parseInt(stats.commentCount || 0);
     }, 0);
-    
+
     const avgEngagement = totalEngagement / videos.length;
     return ((avgEngagement / subscriberCount) * 100).toFixed(2);
+  }
+
+  static extractTopics(videos) {
+    const allTitles = videos.map(v => v.snippet?.title || '').join(' ').toLowerCase();
+    const words = allTitles.match(/\b\w{4,}\b/g) || [];
+    const frequency = {};
+
+    // Common words to filter out
+    const stopWords = new Set(['with', 'this', 'that', 'from', 'have', 'more', 'when', 'what', 'about', 'your', 'their', 'there', 'these', 'those', 'will', 'been', 'were', 'they', 'them']);
+
+    words.forEach(word => {
+      if (!stopWords.has(word)) {
+        frequency[word] = (frequency[word] || 0) + 1;
+      }
+    });
+
+    return Object.entries(frequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([word]) => word);
   }
 }
 
@@ -239,7 +259,7 @@ function normalizeCreatorData(platform, profileData, mediaData) {
         following: 0,
         postCount: parseInt(stats.videoCount) || 0,
         engagement: YouTubeAPI.calculateEngagement(mediaData, parseInt(stats.subscriberCount)),
-        recentTopics: [],
+        recentTopics: YouTubeAPI.extractTopics(mediaData),
         profileUrl: `https://youtube.com/channel/${profileData.id}`
       };
       break;
