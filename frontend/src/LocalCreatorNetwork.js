@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Mail, Star, Check, ExternalLink, RefreshCw, LogOut, MapPin, Sparkles } from 'lucide-react';
+import { Users, Mail, Star, Check, ExternalLink, LogOut, MapPin, Sparkles } from 'lucide-react';
 import LocationSetup from './LocationSetup';
 import CollaboratorMatches from './CollaboratorMatches';
 
@@ -143,13 +143,10 @@ const CreatorCard = ({ creator, onReachOut, onSave, isSaved }) => {
 };
 
 export default function LocalCreatorNetwork({ user, onLogout }) {
-  const [connectedPlatforms, setConnectedPlatforms] = useState({});
   const [creators, setCreators] = useState([]);
   const [selectedCreator, setSelectedCreator] = useState(null);
-  const [outreachMessage, setOutreachMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
-  const [showSetup, setShowSetup] = useState(true);
   const [activeTab, setActiveTab] = useState('platforms'); // platforms, location, matches
   const [userProfile, setUserProfile] = useState(null);
 
@@ -183,7 +180,6 @@ export default function LocalCreatorNetwork({ user, onLogout }) {
           const accounts = await response.json();
           if (accounts.length > 0) {
             setCreators(accounts);
-            setShowSetup(false);
           }
         }
       } catch (error) {
@@ -249,13 +245,7 @@ export default function LocalCreatorNetwork({ user, onLogout }) {
         const creatorData = await response.json();
         
         if (creatorData && !creatorData.error) {
-          setConnectedPlatforms(prev => ({
-            ...prev,
-            [platform]: userId
-          }));
-          
           setCreators(prev => [...prev, { ...creatorData, id: userId }]);
-          setShowSetup(false);
         } else {
           alert(`Failed to fetch ${platform} profile. Please try again.`);
         }
@@ -284,8 +274,7 @@ Looking forward to connecting!
 
 Best,
 [Your Name]`;
-      
-      setOutreachMessage(message);
+
       setLoading(false);
     }, 1500);
   };
@@ -300,24 +289,6 @@ Best,
       }
       return newSet;
     });
-  };
-
-  const refreshCreatorData = async (userId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/creator/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const updatedData = await response.json();
-
-      setCreators(prev => prev.map(c =>
-        c.id === userId ? { ...updatedData, id: userId } : c
-      ));
-    } catch (error) {
-      console.error('Failed to refresh creator data:', error);
-    }
   };
 
   const handleLocationSaved = (updatedUser) => {

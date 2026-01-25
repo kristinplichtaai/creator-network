@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, MapPin, Star, TrendingUp, Mail, Check, X, Sparkles, Loader } from 'lucide-react';
+import { Users, MapPin, TrendingUp, Mail, Check, X, Sparkles, Loader } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
