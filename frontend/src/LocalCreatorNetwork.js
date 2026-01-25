@@ -260,21 +260,10 @@ export default function LocalCreatorNetwork({ user, onLogout }) {
   const generateOutreach = async (creator) => {
     setSelectedCreator(creator);
     setLoading(true);
-    
+
     setTimeout(() => {
-      const message = `Hi ${creator.displayName}! 👋
-
-I came across your ${creator.platform} content and absolutely love your approach to ${creator.recentTopics?.[0] || 'content creation'}. 
-
-I'm a local creator in the area with ${creator.followers?.toLocaleString()} followers on ${creator.platform}, and I think there's great potential for us to collaborate. Our audiences seem to have similar interests and engagement levels.
-
-Would you be interested in exploring a collaboration? I have a few ideas that could benefit both our communities.
-
-Looking forward to connecting!
-
-Best,
-[Your Name]`;
-
+      // Placeholder for AI-generated outreach
+      // This will be enhanced when AI API keys are configured
       setLoading(false);
     }, 1500);
   };
