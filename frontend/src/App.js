@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LocalCreatorNetwork from './LocalCreatorNetwork';
 import CallbackHandler from './CallbackHandler';
 import Login from './Login';
+import ForgotPassword from './ForgotPassword';
+import ResetPassword from './ResetPassword';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -46,13 +48,33 @@ function App() {
     <Router>
       <Routes>
         {/* Login Route */}
-        <Route 
-          path="/login" 
+        <Route
+          path="/login"
           element={
-            isAuthenticated ? 
-              <Navigate to="/" replace /> : 
+            isAuthenticated ?
+              <Navigate to="/" replace /> :
               <Login onLoginSuccess={handleLoginSuccess} />
-          } 
+          }
+        />
+
+        {/* Forgot Password Route */}
+        <Route
+          path="/forgot-password"
+          element={
+            isAuthenticated ?
+              <Navigate to="/" replace /> :
+              <ForgotPassword onBackToLogin={() => window.location.href = '/login'} />
+          }
+        />
+
+        {/* Reset Password Route */}
+        <Route
+          path="/reset-password"
+          element={
+            isAuthenticated ?
+              <Navigate to="/" replace /> :
+              <ResetPassword />
+          }
         />
 
         {/* Main App Route - Protected */}

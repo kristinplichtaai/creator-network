@@ -56,6 +56,14 @@ module.exports = (sequelize) => {
       defaultValue: 50, // Default 50 miles
       comment: 'Preferred collaboration search radius in miles'
     },
+    resetPasswordToken: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    resetPasswordExpires: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW
@@ -87,6 +95,27 @@ module.exports = (sequelize) => {
   // Instance method to check password
   User.prototype.validatePassword = async function(password) {
     return await bcrypt.compare(password, this.password);
+  };
+
+  // Instance method to generate password reset token
+  User.prototype.generateResetToken = function() {
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    this.resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+    this.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    return token; // Return unhashed token to send to user
+  };
+
+  // Static method to find user by reset token
+  User.findByResetToken = async function(token) {
+    const crypto = require('crypto');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    return await User.findOne({
+      where: {
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: { [sequelize.Sequelize.Op.gt]: Date.now() }
+      }
+    });
   };
 
   return User;

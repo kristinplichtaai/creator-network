@@ -143,6 +143,16 @@ const Login = ({ onLoginSuccess }) => {
                   Must be at least 6 characters
                 </p>
               )}
+              {isLogin && (
+                <div className="text-right">
+                  <a
+                    href="/forgot-password"
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    Forgot password?
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Error Message */}
